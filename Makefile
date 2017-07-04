@@ -1,19 +1,20 @@
-SRC:= can.c CanNode.c
-LOGGER:= canLogger.c
-SENDER:= sender.c
-OBJ:=$(SRC:.c=.o)
-LOGGER_OBJ=$(LOGGER:.c=.o)
-SENDER_OBJ=$(SENDER:.c=.o)
+SRC:= CanNode/can.cpp CanNode/CanNode.cpp
+LOGGER:= canLogger.cpp
+SENDER:= sender.cpp
+OBJ:=$(SRC:.cpp=.o)
+LOGGER_OBJ=$(LOGGER:.cpp=.o)
+SENDER_OBJ=$(SENDER:.cpp=.o)
+
 
 .PHONY: clean
 
 all: $(LOGGER_OBJ) $(SENDER_OBJ) $(OBJ)
-	gcc -o CanLogger $(LOGGER_OBJ) $(OBJ)
-	gcc -o sender $(SENDER_OBJ) $(OBJ)
+	g++ -o canLogger $(LOGGER_OBJ) $(OBJ)
+	g++ -o sender $(SENDER_OBJ) $(OBJ)
 	
 
 clean:
-	rm $(OBJ) CanLogger
+	rm $(OBJ) canLogger sender
 
-.c.o:
-	gcc -c -g $< -o $@
+.cpp.o:
+	g++ -g3 -c $< -o $@

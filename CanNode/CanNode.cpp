@@ -6,6 +6,18 @@
  * \date 6-20-16
  */
 #include "CanNode.h"
+#include <unistd.h>
+#include <sys/timeb.h>
+
+CanNode *CanNode::nodes[MAX_NODES] = {nullptr};
+bool CanNode::newMessage = false;
+CanMessage CanNode::tmpMsg;
+
+inline uint32_t HAL_GetTick() {
+  struct timeb tim;
+  ftime(&tim);
+  return (uint32_t) tim.millitm;
+}
 
 /**
  * Initilizes an empty CanNode structure to the values provided.
@@ -26,35 +38,36 @@
 CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
   static bool has_run = false;
   static uint64_t usedNodes = 0;
-  CanNode *node = NULL;
 
   // if this is the first run clear list of nodes
   if (!has_run) {
     can_init();
     can_set_bitrate(CAN_BITRATE_500K);
     can_enable();
-    newMessage = false;
     has_run = true;
-    //clear all of the filter locations
-    memset(nodes, 0, sizeof(nodes));
   }
 
   // check if a node of that type exists
   for (uint8_t i = 0; i < MAX_NODES; ++i) {
     // check if spot is used
-    if (nodes[i].id != 0) {
+    if (nodes[i] != nullptr ) {
       continue;
     }
     // otherwise its open
 
+    for(int j = 0; j < NUM_FILTERS; j++){
+        this->filters[j] = 0;
+        this->handle[j] = nullptr;
+    }
+
     // add id etc
-    node = &nodes[i];
+    nodes[i] = this;
 
     //clear the name and info pointers
-    node->nameStr=NULL;
-    node->infoStr=NULL;
+    nameStr=NULL;
+    infoStr=NULL;
 
-    node->id = id;
+    this->id = id;
     // add filters to hardware
     // default filters
     can_add_filter_id(id);     // rtr filter
@@ -98,11 +111,11 @@ bool CanNode::addFilter(uint16_t filter, filterHandler handle) {
 
   // add to the end of the list of filters... If there's room.
   for (uint8_t i = 0; i < NUM_FILTERS; ++i) {
-    if (node->filters[i] == 0) {
+    if (this->filters[i] == 0) {
       // save the filter id
-      node->filters[i] = filter;
+      this->filters[i] = filter;
       // save a pointer to the handler function
-      node->handle[i] = handle;
+      this->handle[i] = handle;
 
       /*
        * If not a reseved address, add to hardware filtering
@@ -138,7 +151,7 @@ bool CanNode::addFilter(uint16_t filter, filterHandler handle) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void sendData(int8_t data) {
+void CanNode::sendData(int8_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT8) << 5) | (0x1F & CAN_DATA);
@@ -146,7 +159,7 @@ void sendData(int8_t data) {
   msg.data[1] = (uint8_t)data;
   // set other odds and ends
   msg.len = 2;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -165,7 +178,7 @@ void sendData(int8_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode_sendData_uint8(const CanNode *node, uint8_t data) {
+void CanNode::sendData(uint8_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT8) << 5) | (0x1F & CAN_DATA);
@@ -173,7 +186,7 @@ void CanNode_sendData_uint8(const CanNode *node, uint8_t data) {
   msg.data[1] = data;
   // set other odds and ends
   msg.len = 2;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -192,7 +205,7 @@ void CanNode_sendData_uint8(const CanNode *node, uint8_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode_sendData_int16(const CanNode *node, int16_t data) {
+void CanNode::sendData(int16_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT16) << 5) | (0x1F & CAN_DATA);
@@ -202,7 +215,7 @@ void CanNode_sendData_int16(const CanNode *node, int16_t data) {
   // set other odds and ends
   msg.len = 3;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -221,7 +234,7 @@ void CanNode_sendData_int16(const CanNode *node, int16_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode_sendData_uint16(const CanNode *node, uint16_t data) {
+void CanNode::sendData(uint16_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT16) << 5) | (0x1F & CAN_DATA);
@@ -231,7 +244,7 @@ void CanNode_sendData_uint16(const CanNode *node, uint16_t data) {
   // set other odds and ends
   msg.len = 3;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -250,7 +263,7 @@ void CanNode_sendData_uint16(const CanNode *node, uint16_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode_sendData_int32(const CanNode *node, int32_t data) {
+void CanNode::sendData(int32_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT32) << 5) | (0x1F & CAN_DATA);
@@ -262,7 +275,7 @@ void CanNode_sendData_int32(const CanNode *node, int32_t data) {
   // set other odds and ends
   msg.len = 5;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -281,7 +294,7 @@ void CanNode_sendData_int32(const CanNode *node, int32_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode_sendData_uint32(const CanNode *node, uint32_t data) {
+void CanNode::sendData(uint32_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT32) << 5) | (0x1F & CAN_DATA);
@@ -293,7 +306,7 @@ void CanNode_sendData_uint32(const CanNode *node, uint32_t data) {
   // set other odds and ends
   msg.len = 5;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
 }
 
@@ -318,8 +331,7 @@ void CanNode_sendData_uint32(const CanNode *node, uint32_t data) {
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode_sendDataArr_int8(const CanNode *node, int8_t *data,
-                                  uint8_t len) {
+CanState CanNode::sendData(int8_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 7) {
@@ -336,7 +348,7 @@ CanState CanNode_sendDataArr_int8(const CanNode *node, int8_t *data,
   // set other odds and ends
   msg.len = len + 1;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
   return DATA_OK;
 }
@@ -362,8 +374,7 @@ CanState CanNode_sendDataArr_int8(const CanNode *node, int8_t *data,
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode_sendDataArr_uint8(const CanNode *node, uint8_t *data,
-                                   uint8_t len) {
+CanState CanNode::sendData(uint8_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 7) {
@@ -380,7 +391,7 @@ CanState CanNode_sendDataArr_uint8(const CanNode *node, uint8_t *data,
   // set other odds and ends
   msg.len = len + 1;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
   return DATA_OK;
 }
@@ -406,8 +417,7 @@ CanState CanNode_sendDataArr_uint8(const CanNode *node, uint8_t *data,
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode_sendDataArr_int16(const CanNode *node, int16_t *data,
-                                   uint8_t len) {
+CanState CanNode::sendData(int16_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 2) {
@@ -425,7 +435,7 @@ CanState CanNode_sendDataArr_int16(const CanNode *node, int16_t *data,
   // set other odds and ends
   msg.len = len * 2 + 1;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
   return DATA_OK;
 }
@@ -451,8 +461,7 @@ CanState CanNode_sendDataArr_int16(const CanNode *node, int16_t *data,
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode_sendDataArr_uint16(const CanNode *node, uint16_t *data,
-                                    uint8_t len) {
+CanState CanNode::sendData(uint16_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 2) {
@@ -470,7 +479,7 @@ CanState CanNode_sendDataArr_uint16(const CanNode *node, uint16_t *data,
   // set other odds and ends
   msg.len = len * 2 + 1;
   msg.rtr = false;
-  msg.id = node->id;
+  msg.id = this->id;
   can_tx(&msg, 5);
   return DATA_OK;
 }
@@ -506,7 +515,7 @@ CanState CanNode_sendDataArr_uint16(const CanNode *node, uint16_t *data,
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getData_int8(const CanMessage *msg, int8_t *data) {
+CanState CanNode::getData(const CanMessage *msg, int8_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -557,7 +566,7 @@ CanState CanNode_getData_int8(const CanMessage *msg, int8_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getData_uint8(const CanMessage *msg, uint8_t *data) {
+CanState CanNode::getData(const CanMessage *msg, uint8_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -607,7 +616,7 @@ CanState CanNode_getData_uint8(const CanMessage *msg, uint8_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getData_int16(const CanMessage *msg, int16_t *data) {
+CanState CanNode::getData(const CanMessage *msg, int16_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -658,7 +667,7 @@ CanState CanNode_getData_int16(const CanMessage *msg, int16_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getData_uint16(const CanMessage *msg, uint16_t *data) {
+CanState CanNode::getData(const CanMessage *msg, uint16_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -709,7 +718,7 @@ CanState CanNode_getData_uint16(const CanMessage *msg, uint16_t *data) {
  * \see CanNode_getData_uint16()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getData_int32(const CanMessage *msg, int32_t *data) {
+CanState CanNode::getData(const CanMessage *msg, int32_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -762,7 +771,7 @@ CanState CanNode_getData_int32(const CanMessage *msg, int32_t *data) {
  * \see CanNode_getData_uint16()
  * \see CanNode_getData_int32()
  */
-CanState CanNode_getData_uint32(const CanMessage *msg, uint32_t *data) {
+CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
 
   if (msg == NULL) {
     return DATA_ERROR;
@@ -823,8 +832,7 @@ CanState CanNode_getData_uint32(const CanMessage *msg, uint32_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getDataArr_int8(const CanMessage *msg, int8_t data[7],
-                                 uint8_t *len) {
+CanState CanNode::getData(const CanMessage *msg, int8_t data[7], uint8_t *len) {
   if (msg == NULL) {
     return DATA_ERROR;
   }
@@ -884,8 +892,8 @@ CanState CanNode_getDataArr_int8(const CanMessage *msg, int8_t data[7],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
-                                  uint8_t *len) {
+CanState CanNode::getData(const CanMessage *msg, uint8_t data[7],
+                          uint8_t *len) {
   if (msg == NULL) {
     return DATA_ERROR;
   }
@@ -945,7 +953,7 @@ CanState CanNode_getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getDataArr_int16(const CanMessage *msg, int16_t data[2],
+CanState CanNode::getData(const CanMessage *msg, int16_t data[2],
                                   uint8_t *len) {
   if (msg == NULL) {
     return DATA_ERROR;
@@ -1009,8 +1017,8 @@ CanState CanNode_getDataArr_int16(const CanMessage *msg, int16_t data[2],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode_getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
-                                   uint8_t *len) {
+CanState CanNode::getData(const CanMessage *msg, uint16_t data[2],
+                          uint8_t *len) {
   if (msg == NULL) {
     return DATA_ERROR;
   }
@@ -1049,7 +1057,7 @@ CanState CanNode_getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
  * if the message has the id of one of the stored nodes and the calling node
  * is not sending a request frame.
  */
-void CanNode_checkForMessages() {
+void CanNode::checkForMessages() {
   // pc code should check if a new message is avalible
   // TODO stm32 uses an interrupt to put the newest message in a struct
 
@@ -1064,34 +1072,38 @@ void CanNode_checkForMessages() {
 
     // CanNode takes over if the caller asks for a reserved id
     // rtr request for node data
-    if (tmpMsg.id == nodes[i].id && tmpMsg.rtr) {
-      nodes[i].rtrHandle(&tmpMsg);
+    if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id && tmpMsg.rtr) {
+      nodes[i]->rtrHandle(&tmpMsg);
     }
     // get name id if asked with an rtr
-    else if (tmpMsg.id == nodes[i].id + 1 && tmpMsg.rtr) {
-      CanNode_sendName(&nodes[i]);
+    else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 1 &&
+             tmpMsg.rtr) {
+      nodes[i]->sendName();
     }
     // get info id
-    else if (tmpMsg.id == nodes[i].id + 2 && tmpMsg.rtr) {
-      CanNode_sendInfo(&nodes[i]);
+    else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 2 &&
+             tmpMsg.rtr) {
+      nodes[i]->sendInfo();
     }
     // configuration id
-    else if (tmpMsg.id == nodes[i].id + 3) {
+    //else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 3) {
       // CanNode_nodeHandler(&nodes[i], &tmpMsg);
-    } else {
+    else {
       // call callbacks for the user defined filters
       for (uint8_t j = 0; j < NUM_FILTERS; ++j) {
-        if (tmpMsg.id == nodes[i].filters[j] && nodes[i].handle[j] != NULL) {
+        if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->filters[j] &&
+            nodes[i]->handle[j] != nullptr) {
 
           // call handler function
-          nodes[i].handle[j](&tmpMsg);
+          nodes[i]->handle[j](&tmpMsg);
         }
         // check if the filter match equals a filter id
-        else if (tmpMsg.fmi == nodes[i].filters[j] && // filter matches
-                 nodes[i].handle[j] != NULL) {
+        else if (nodes[i] != nullptr &&
+                 tmpMsg.fmi == nodes[i]->filters[j] && // filter matches
+                 nodes[i]->handle[j] != nullptr) {
 
           // call handler function
-          nodes[i].handle[j](&tmpMsg);
+          nodes[i]->handle[j](&tmpMsg);
         }
       }
     }
@@ -1101,12 +1113,63 @@ void CanNode_checkForMessages() {
   newMessage = false;
 }
 
-void CanNode_setName(CanNode *node, const char *name) {
-    node->nameStr = name;
+void CanNode::setName(const char *name) {
+    this->nameStr = name;
 }
 
-void CanNode_setInfo(CanNode *node, const char *info) {
-    node->infoStr = info;
+void CanNode::setInfo(const char *info) {
+    this->infoStr = info;
+}
+
+void CanNode::getString(uint16_t id, char *buff, uint8_t len,
+                        uint8_t timeout) {
+  CanMessage msg;
+  uint32_t tickStart;
+  // send a request to the specified CanNode and query its get name address
+  msg.id = id;
+  msg.len = 1;
+  msg.rtr = true;
+  msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
+  can_tx(&msg, 5);
+
+  msg.id = 0;
+  // get start time
+  tickStart = HAL_GetTick();
+
+  int badMessages = 0;
+
+  char *str = buff;
+  // keep collecting data until a null character is reached, buffer is full,
+  // or a timeout condition is reached.
+  while (str - buff < len && HAL_GetTick() - tickStart < timeout) {
+    // wait for message or timeout
+    while (!is_can_msg_pending() && HAL_GetTick() - tickStart < timeout)
+      ;
+    // get the next buffer
+    can_rx(&msg, 5);
+    // check if it is from our id
+    if (msg.id != id || (msg.data[0] & 0x1F) != CAN_NAME_INFO) {
+      badMessages++;
+      if (badMessages > 10) {
+        msg.id = id;
+        msg.len = 1;
+        msg.rtr = true;
+        msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
+        can_tx(&msg, 5);
+        msg.id = 0;
+      }
+      HAL_Delay(50);
+      continue;
+    }
+    // get all the data from this buffer
+    for (uint8_t i = 1; i < msg.len && str - buff < len; ++str, ++i) {
+      *str = msg.data[i];
+    }
+  }
+
+  // this won't hurt anything and if the function timeouted this will make sure
+  // that the string is null terminated
+  *(buff + len - 1) = '\0';
 }
 
 /**
@@ -1119,61 +1182,10 @@ void CanNode_setInfo(CanNode *node, const char *info) {
  * \param timeout length in mili-seconds before giving up the message
  *
  * \see CanNode_requestInfo()
- */ 
-void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
-                         uint16_t timeout) {
-  CanMessage msg;
-  uint32_t tickStart;
-  // send a request to the specified CanNode and query its get name address
-  msg.id = id + 1;
-  msg.len = 1;
-  msg.rtr = true;
-  msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
-  can_tx(&msg, 5);
-
-  msg.id = 0;
-
-  // get start time
-  tickStart = HAL_GetTick();
-
-  char *namePtr = buff;
-  int badMessages = 0;
-
-  // keep collecting data until a null character is reached, buffer is full,
-  // or a timeout condition is reached.
-  while (namePtr - buff < len && HAL_GetTick() - tickStart < timeout) {
-    // wait for message or timeout
-    while (!is_can_msg_pending() && HAL_GetTick() - tickStart < timeout )
-      ;
-    // get the next buffer
-    can_rx(&msg, 5);
-    // check if it is from our id
-    if (msg.id != id + 1 /*|| (msg.data[0] & 0x1F) != CAN_NAME_INFO*/) {
-      badMessages++;
-      if(badMessages > 10){
-        msg.id = id + 1;
-        msg.len = 1;
-        msg.rtr = true;
-        msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
-        can_tx(&msg, 5);
-        msg.id = 0;
-      }
-      usleep(50000);
-      continue;
-    }
-    // get all the data from this buffer
-    uint8_t i;
-    for (i = 1; i < msg.len && namePtr - buff < len; ++namePtr, ++i) {
-      *namePtr = msg.data[i];
-      if (*namePtr == '\0') {
-        return;
-      }
-    }
-  }
-
-  //this won't hurt anything and if the function timeouted this will make sure
-  //that the string is null terminated
-  *(buff+len-1)='\0';
+ */
+void CanNode::requestName(CanNodeType id, char *buff, uint8_t len,
+                          uint16_t timeout) {
+  getString(id + 1, buff, len, timeout);
 }
 
 /**
@@ -1186,78 +1198,31 @@ void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
  * \param timeout length in mili-seconds before giving up the message
  *
  * \see CanNode_requestName()
- */ 
-void CanNode_requestInfo(CanNodeType id, char *buff, uint8_t len,
-                         uint16_t timeout) {
-
-  CanMessage msg;
-  uint32_t tickStart;
-  // send a request to the specified id
-  msg.id = id + 2;
-  msg.len = 1;
-  msg.rtr = true;
-  msg.data[0] = CAN_GET_INFO | (CAN_INT8 << 5);
-  can_tx(&msg, 5);
-
-  // get start time
-  tickStart = HAL_GetTick();
-
-  int badMessages = 0;
-
-  char *infoPtr = buff;
-  // keep collecting data until a null character is reached, buffer is full,
-  // or a timeout condition is reached.
-  while (infoPtr - buff < len && HAL_GetTick() - tickStart < timeout) {
-    // wait for message or timeout
-    while (!is_can_msg_pending() && HAL_GetTick() - tickStart < timeout)
-      ;
-    // get the next buffer
-    can_rx(&msg, 5);
-    // check if it is from our id
-    if (msg.id != id + 2 || (msg.data[0] & 0x1F) != CAN_NAME_INFO) {
-      badMessages++;
-      if(badMessages > 10){
-        msg.id = id + 1;
-        msg.len = 1;
-        msg.rtr = true;
-        msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
-        can_tx(&msg, 5);
-        msg.id = 0;
-      }
-      usleep(50000);
-      continue;
-    }
-    // get all the data from this buffer
-    for (uint8_t i = 1; i < msg.len && infoPtr - buff < len;
-         ++infoPtr, ++i) {
-      *infoPtr= msg.data[i];
-    }
-  }
-
-  //this won't hurt anything and if the function timeouted this will make sure
-  //that the string is null terminated
-  *(buff+len-1)='\0';
+ */
+void CanNode::requestInfo(CanNodeType id, char *buff, uint8_t len,
+                          uint16_t timeout) {
+  getString(id + 2, buff, len, timeout);
 }
 
-static void CanNode_sendName(const CanNode *node) {
+void CanNode::sendString(uint16_t id, const char *str) {
   CanMessage msg;
-  msg.id = node->id + 1;
+  msg.id = id;
   msg.rtr = false;
   msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
 
   bool msgFinished = false;
 
   //fill buffers and send them 
-  const char *namePtr = node->nameStr;
+  const char *namePtr = str;
   //check that there is valid data to transmit
-  if(namePtr == NULL){
+  if(namePtr == nullptr){
       return;
   }
   //loop while the string is valid
   while (!msgFinished) {
 
     // break if end of name has been reached
-    for (msg.len = 1; msg.len < 8; ++msg.len, namePtr++) {
+    for (msg.len = 1; msg.len < 8; msg.len++, namePtr++) {
 
       // set data
       msg.data[msg.len] = *namePtr;
@@ -1270,41 +1235,14 @@ static void CanNode_sendName(const CanNode *node) {
     }
     //transmit data with 5ms timeout
     can_tx(&msg, 5);
-    usleep(50000);
+    HAL_Delay(50);
   }
 }
 
-static void CanNode_sendInfo(const CanNode *node) {
-  CanMessage msg;
-  msg.id = node->id + 2;
-  msg.rtr = false;
-  msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
+void CanNode::sendName() {
+    sendString(this->id+1, this->nameStr);
+}
 
-  bool msgFinished = false;
-
-  //fill buffers and send them 
-  const char *infoPtr = node->infoStr;
-  //check that there is valid data to transmit
-  if(infoPtr == NULL){
-      return;
-  }
-  //loop while the string is valid
-  while (!msgFinished) {
-
-    // break if end of name has been reached
-    for (msg.len = 1; msg.len < 8; msg.len++, infoPtr++) {
-
-      // set data
-      msg.data[msg.len] = *infoPtr;
-      if(*infoPtr == '\0'){
-          msgFinished = true;
-          msg.len++;
-          break;
-      }
-
-    }
-    //transmit data with 5ms timeout
-    can_tx(&msg, 5);
-    usleep(50000);
-  }
+void CanNode::sendInfo() {
+    sendString(this->id+2, this->infoStr);
 }

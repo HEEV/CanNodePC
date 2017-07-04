@@ -5,7 +5,17 @@
  */
 
 
-#include "can.h"
+#include "CanNode.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/can.h>
+#include <net/if.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/timeb.h>
+#include <unistd.h>
 
 static int s;
 static CanState bus_state;
@@ -15,13 +25,8 @@ static struct can_frame *tmp_msg;
 static void frame_to_message(CanMessage *out, struct can_frame *in);
 static void message_to_frame(struct can_frame *out, CanMessage *in);
 
-inline uint32_t HAL_GetTick() {
-  struct timeb tim;
-  ftime(&tim);
-  return (uint32_t) tim.millitm;
-}
 
-void can_init(void) {
+void CanNode::can_init(void) {
   // default to kbit/s
   struct sockaddr_can addr;
   struct ifreq ifr;
@@ -41,10 +46,10 @@ void can_init(void) {
   fcntl(s, F_SETFL, flags | O_NONBLOCK);
 }
 
-void can_enable(void) {
+void CanNode::can_enable(void) {
 }
 
-void can_set_bitrate(canBitrate bitrate) {
+void CanNode::can_set_bitrate(canBitrate bitrate) {
 }
 
 /**
@@ -53,7 +58,7 @@ void can_set_bitrate(canBitrate bitrate) {
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t can_add_filter_id(uint16_t id) {
+uint16_t CanNode::can_add_filter_id(uint16_t id) {
     return 0;
 }
 
@@ -78,18 +83,18 @@ uint16_t can_add_filter_id(uint16_t id) {
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
+uint16_t CanNode::can_add_filter_mask(uint16_t id, uint16_t mask) {
     return 0;
 }
 
-CanState can_tx(CanMessage *tx_msg, uint32_t timeout) { 
+CanState CanNode::can_tx(CanMessage *tx_msg, uint32_t timeout) { 
     struct can_frame msg;
     message_to_frame(&msg, tx_msg);
     write(s, &msg, sizeof(struct can_frame));
     HAL_Delay(10);
 }
 
-CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
+CanState CanNode::can_rx(CanMessage *rx_msg, uint32_t timeout) {
 
   if (is_can_msg_pending()) {
     // convert a can_frame into a CanMessage
@@ -103,9 +108,9 @@ CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
   return NO_DATA;
 }
 
-bool is_can_msg_pending() {
+bool CanNode::is_can_msg_pending() {
   if (tmp_msg == NULL) {
-    tmp_msg = malloc(sizeof(struct can_frame));
+    tmp_msg = (can_frame*) malloc(sizeof(struct can_frame));
   } 
   else {
     return true;

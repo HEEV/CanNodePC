@@ -123,10 +123,10 @@ class CanNode {
 
 
 private:
-  static CanNode nodes[MAX_NODES];
   static bool newMessage;
   static CanMessage tmpMsg;
   static const unsigned int UNUSED_FILTER = 0xFFFF;
+  static CanNode *nodes[MAX_NODES];
 
   uint16_t id;                   ///< id of the node
   uint8_t status;                ///< status of the node (not currently used)
@@ -146,7 +146,7 @@ public:
   /// \brief Add a filter and handler to a given CanNode.
   bool addFilter(uint16_t filter, filterHandler handle);
   /// \brief Check all initilized CanNodes for messages and call callbacks.
-  void checkForMessages();
+  static void checkForMessages();
 
   /**
    * \anchor sendData
@@ -193,26 +193,26 @@ public:
    * @{
    */
   /// \brief Get a signed 8-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int8_t *data) const;
+  static CanState getData(const CanMessage *msg, int8_t *data);
   /// \brief Get an unsigned 8-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint8_t *data) const;
+  static CanState getData(const CanMessage *msg, uint8_t *data);
   /// \brief Get a signed 16-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int16_t *data) const;
+  static CanState getData(const CanMessage *msg, int16_t *data);
   /// \brief Get an unsigned 16-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint16_t *data) const;
+  static CanState getData(const CanMessage *msg, uint16_t *data);
   /// \brief Get a signed 32-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int32_t *data) const;
+  static CanState getData(const CanMessage *msg, int32_t *data);
   /// \brief Get an unsigned 32-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint32_t *data) const;
+  static CanState getData(const CanMessage *msg, uint32_t *data);
 
   /// \brief Get an array of signed 8-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, int8_t data[7], uint8_t *len) const;
+  static CanState getData(const CanMessage *msg, int8_t data[7], uint8_t *len);
   /// \brief Get an array of unsigned 8-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint8_t data[7], uint8_t *len) const;
+  static CanState getData(const CanMessage *msg, uint8_t data[7], uint8_t *len);
   /// \brief Get an array of signed 16-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, int16_t data[2], uint8_t *len) const;
+  static CanState getData(const CanMessage *msg, int16_t data[2], uint8_t *len);
   /// \brief Get an array of unsigned 16-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint16_t data[2], uint8_t *len) const;
+  static CanState getData(const CanMessage *msg, uint16_t data[2], uint8_t *len);
   //@}
 
   /**
@@ -231,10 +231,11 @@ public:
   void setInfo(const char *info);
   /// \brief request the name string from another CanNode
   static void requestName(CanNodeType id, char *buff, uint8_t len,
-                          uint16_t timeout) const;
+                          uint16_t timeout);
   /// \brief request the info string from another CanNode
   static void requestInfo(CanNodeType id, char *buff, uint8_t len,
-                          uint16_t timeout) const;
+                          uint16_t timeout);
+
   //@}
 
   /*@}*/
@@ -261,14 +262,19 @@ private:
    *
    * \param[in] node CanNode whose information should be sent
    */
-  static void sendName(const CanNode *node);
+  void sendName();
 
   /**
    * private function to send a node's info string on the CAN bus
    *
    * \param[in] node CanNode whose information should be sent
    */
-  static void sendInfo(const CanNode *node);
+  void sendInfo();
+
+  /// \brief Get a string
+  static void getString(uint16_t id, char *buff, uint8_t len, uint8_t timeout);
+  /// \brief Send a string
+  static void sendString(uint16_t id, const char *str);
 
   /// \brief Initilize CAN hardware.
   static void can_init(void);
@@ -278,5 +284,5 @@ private:
   static void can_sleep(void);
   /// \brief Set the speed of the CANBus.
   static void can_set_bitrate(canBitrate bitrate);
-}
+};
 #endif //_CAN_NODE_H_

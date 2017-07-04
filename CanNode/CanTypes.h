@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define HAL_Delay(ms_delay) (usleep(ms_delay * 1000))
 /**
  * \addtogroup CanNode_Module CanNode
  *@{
