@@ -9,7 +9,7 @@ SENDER_OBJ=$(SENDER:.cpp=.o)
 .PHONY: clean
 
 all: $(LOGGER_OBJ) $(SENDER_OBJ) $(OBJ)
-	g++ -o canLogger $(LOGGER_OBJ) $(OBJ)
+#	g++ -o canLogger $(LOGGER_OBJ) $(OBJ)
 	g++ -o sender $(SENDER_OBJ) $(OBJ)
 	
 
