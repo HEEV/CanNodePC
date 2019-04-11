@@ -71,9 +71,9 @@ CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
     // add filters to hardware
     // default filters
     can_add_filter_id(id);     // rtr filter
-    can_add_filter_id(id + 1); // get name filter
-    can_add_filter_id(id + 2); // get info filter
-    can_add_filter_id(id + 3); // configuration filter
+    //can_add_filter_id(id + 1); // get name filter
+    //can_add_filter_id(id + 2); // get info filter
+    //can_add_filter_id(id + 3); // configuration filter
 
     // fill a spot in used nodes
     usedNodes |= 1 << i;
