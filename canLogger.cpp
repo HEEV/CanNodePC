@@ -22,44 +22,21 @@ void nodeHandler(CanMessage *msg);
 void timeHandler(CanMessage *msg);
 void countHandler(CanMessage *msg);
 
+void rpmHandler(CanMessage *msg);
+void currentHandler(CanMessage *msg);
+
 int main(int nargs, char **args) {
 
   CanNode node(MEGASQUIRT, nodeHandler);
-  node.addFilter(WHEEL_TIME, timeHandler);
-  node.addFilter(WHEEL_TACH, countHandler);
+  node.addFilter((CanNodeType) 1002, currentHandler);
+  node.addFilter((CanNodeType) 1003, rpmHandler);
   int time_diff;
   CanMessage msg;
 
-  char buff[256];
 
-   int64_t prev = duration_cast<milliseconds>(
-           system_clock::now().time_since_epoch()
-           ).count();
-  //CanNode::requestName(PITOT, buff, 255, 500);
-  // printf("%s\n", buff);
   while (1) {
-    //for (int i = 0; i < 5; i++) {
-    //CanNode::checkForMessages();
-    //usleep(500);
-    //check for messages
-    if(CanNode::is_can_msg_pending()){
-        CanNode::can_rx(&msg, 2);
-
-       if(msg.id == 1512){
-           int64_t now = duration_cast<milliseconds>(
-                   system_clock::now().time_since_epoch()
-                   ).count();
-
-           time_diff = now - prev;
-           
-           prev = now;
-
-           std::cout << time_diff << std::endl;
-       }
-    }
-    //}
-    //CanNode_requestInfo(PITOT, buff, 255, 500);
-    //printf("%s\n", buff);
+    CanNode::checkForMessages();
+    usleep(500);
   }
 
   return 0;
@@ -77,4 +54,16 @@ void countHandler(CanMessage *msg) {
   uint8_t data;
   CanNode::getData(msg, &data);
   printf("id: %x, data: %d\n", msg->id, data);
+}
+
+void rpmHandler(CanMessage *msg) {
+  int32_t data;
+  CanNode::getData(msg, &data);
+  printf("id: %d, data: %d\n", msg->id, data);
+}
+
+void currentHandler(CanMessage *msg) {
+  float data;
+  CanNode::getData_float(msg, &data);
+  printf("id: %d, data: %f\n", msg->id, data);
 }

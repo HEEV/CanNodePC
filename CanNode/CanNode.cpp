@@ -794,6 +794,34 @@ CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
   return DATA_OK;
 }
 
+CanState CanNode::getData_float(const CanMessage *msg, float *data)
+{
+  if (msg == nullptr) {
+    return DATA_ERROR;
+  }
+
+  CanState ret = DATA_OK;
+  // check configuration byte
+  if ( msg->len != 5 ||                     // not right length
+      (msg->data[0] >> 5)   != CAN_FLOAT || // not right type
+      (msg->data[0] & 0x1F) != CAN_DATA) {  // not data
+
+    ret = INVALID_TYPE;
+  }
+
+  // recast the float into a uint8 to do pull the data
+  // out of the structure
+  uint8_t* flt_ptr = (uint8_t*)data;
+
+  // data
+  *flt_ptr     = msg->data[1];
+  *(flt_ptr+1) = msg->data[2];
+  *(flt_ptr+2) = msg->data[3];
+  *(flt_ptr+3) = msg->data[4];
+
+  return ret;
+}
+
 /**
  * Interpert a CanMessage as a signed 8 bit array (will return error if
  * incorrect)

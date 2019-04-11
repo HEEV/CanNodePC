@@ -92,6 +92,8 @@ CanState CanNode::can_tx(CanMessage *tx_msg, uint32_t timeout) {
     message_to_frame(&msg, tx_msg);
     write(s, &msg, sizeof(struct can_frame));
     HAL_Delay(10);
+
+    return DATA_OK;
 }
 
 CanState CanNode::can_rx(CanMessage *rx_msg, uint32_t timeout) {

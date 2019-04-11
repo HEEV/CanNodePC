@@ -205,6 +205,8 @@ public:
   /// \brief Get an unsigned 32-bit integer from a CanMessage.
   static CanState getData(const CanMessage *msg, uint32_t *data);
 
+  static CanState getData_float(const CanMessage *msg, float *data);
+
   /// \brief Get an array of signed 8-bit integers from a CanMessage.
   static CanState getData(const CanMessage *msg, int8_t data[7], uint8_t *len);
   /// \brief Get an array of unsigned 8-bit integers from a CanMessage.

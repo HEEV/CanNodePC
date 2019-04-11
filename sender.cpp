@@ -14,8 +14,13 @@ void nodeHandler(CanMessage *msg);
 
 int main(int nargs, char **args) {
 
-  CanNode starter_switch_node((CanNodeType) 916, nodeHandler);
-  CanNode stop_switch_node((CanNodeType) 912, nodeHandler);
+  CanNode motor_dir((CanNodeType) 1004, nodeHandler);
+  CanNode cmode((CanNodeType) 1005, nodeHandler);
+  CanNode max_current((CanNodeType) 1006, nodeHandler);
+  CanNode max_velocity((CanNodeType) 1007, nodeHandler);
+  CanNode max_acceleration((CanNodeType) 1008, nodeHandler);
+
+  CanNode throttle((CanNodeType) 900, nodeHandler);
   CanMessage msg;
 
   while(1){
@@ -29,10 +34,22 @@ int main(int nargs, char **args) {
       usleep(10000);
     }
     */
-    starter_switch_node.sendData((uint8_t) 1);
-    usleep(250000);
-    stop_switch_node.sendData((uint8_t) 1);
-    usleep(250000);
+    motor_dir.sendData((uint8_t) 1);
+    cmode.sendData((uint8_t) 0);
+
+    max_current.sendData((uint16_t) 3000);
+    max_velocity.sendData((uint32_t) 8000);
+    max_acceleration.sendData((uint32_t) 5000);
+
+
+    usleep(1000000);
+    motor_dir.sendData((uint8_t) 0);
+    cmode.sendData((uint8_t) 0);
+
+    max_current.sendData((uint16_t) 6000);
+    max_velocity.sendData((uint32_t) 10000);
+    max_acceleration.sendData((uint32_t) 3000);
+    usleep(1000000);
   }
 
   return 0;
