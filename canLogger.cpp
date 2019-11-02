@@ -28,8 +28,9 @@ void currentHandler(CanMessage *msg);
 int main(int nargs, char **args) {
 
   CanNode node(MEGASQUIRT, nodeHandler);
-  node.addFilter((CanNodeType) 1002, currentHandler);
-  node.addFilter((CanNodeType) 1003, rpmHandler);
+  node.addFilter(WHEEL_TIME, timeHandler);
+  node.addFilter(WHEEL_TACH, rpmHandler);
+  node.addFilter(PITOT, currentHandler);
   int time_diff;
   CanMessage msg;
 
@@ -45,13 +46,13 @@ int main(int nargs, char **args) {
 void nodeHandler(CanMessage *msg) {}
 
 void timeHandler(CanMessage *msg) {
-  uint16_t data;
+  uint32_t data;
   CanState ret = CanNode::getData(msg, &data);
   printf("id: %x, data: %4d ret: %d\n", msg->id, data, (int) ret);
 }
 
 void countHandler(CanMessage *msg) {
-  uint8_t data;
+  uint16_t data;
   CanNode::getData(msg, &data);
   printf("id: %x, data: %d\n", msg->id, data);
 }
@@ -63,7 +64,7 @@ void rpmHandler(CanMessage *msg) {
 }
 
 void currentHandler(CanMessage *msg) {
-  float data;
-  CanNode::getData_float(msg, &data);
-  printf("id: %d, data: %f\n", msg->id, data);
+  uint16_t data;
+  CanNode::getData(msg, &data);
+  printf("id: %d, data: %d\n", msg->id, data);
 }
